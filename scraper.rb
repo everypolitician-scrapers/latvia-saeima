@@ -45,8 +45,8 @@ end
 
 pages = [
   '/personal/deputati/saeima12_depweb_public.nsf/deputies?OpenView&lang=EN&count=1000',
-  '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=1&lang=EN&count=1000',
-  '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000',
+  # '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=1&lang=EN&count=1000',
+  # '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000',
 ]
 
 pages.each do |link|
