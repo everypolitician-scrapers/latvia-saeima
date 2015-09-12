@@ -82,26 +82,28 @@ pages.each do |link|
       name: nokomem.css('div.header3#ViewBlockTitle').text.tidy,
       photo: nokomem.css('td#photoHolder img/@src').text,
       email: email,
+      term: nokomem.css('.mainInfo .header3').text[/Activity during the (\d+)\w+ Saeima/, 1],
       source: mp_page.current_url,
     }
     person[:photo] = URI.join(url, person[:photo]).to_s unless person[:photo].to_s.empty?
 
-    mems = nokomem.xpath('.//div[@class="header2" and contains(.,"Membership in the Saeima")]/following::table[1]//tr[td]').map do |tr|
+    mems = nokomem.xpath('.//div[@class="header2" and contains(.,"Membership in the Saeima")]/following::table[1]//tr[not(@class="tblHead")]').map do |tr|
       mtds = tr.css('td')
       mem = { 
+        id: mtds[2].text.tidy,
         start_date: mtds[0].text.split('.').reverse.join('-'),
         end_date: mtds[1].text.split('.').reverse.join('-'),
-        what: mtds[2].text,
-        role: mtds[3].text,
+        role: mtds[3].text.tidy,
       }
     end
-    terms, groups = mems.partition { |m| m[:what].downcase.include? 'member of the saeima' }
+    terms, groups = mems.partition { |m| m[:id].downcase.include? 'member of the saeima' }
     binding.pry if terms.count.zero? || groups.count.zero?
 
-    binding.pry
-
-    data = person.merge(front)
-    puts data
-    # ScraperWiki.save_sqlite([:id, :term], data)
+    combine(note: terms, party: groups).each do |mem|
+      data = person.merge(front).merge(mem)
+      data[:party] = data[:party].sub(' parliamentary group','')
+      puts data
+      ScraperWiki.save_sqlite([:id, :term, :party, :start_date], data)
+    end
   end
 end
