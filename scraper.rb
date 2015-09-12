@@ -51,7 +51,6 @@ pages = [
 
 pages.each do |link|
   url = @BASE + link
-  puts url
   page = visit url
 
   noko = Nokogiri::HTML(page.html)
@@ -100,10 +99,10 @@ pages.each do |link|
     groups, terms = mems.partition { |m| m[:style].downcase.include? 'bold' }
     binding.pry if terms.count.zero? || groups.count.zero?
 
+    puts person[:name]
     combine(note: terms, party: groups).each do |mem|
       data = person.merge(front).merge(mem)
       data[:party] = data[:party].sub(' parliamentary group','')
-      puts data
       ScraperWiki.save_sqlite([:id, :term, :party, :start_date], data)
     end
   end
