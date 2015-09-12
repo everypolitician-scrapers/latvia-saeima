@@ -94,9 +94,10 @@ pages.each do |link|
         start_date: mtds[0].text.split('.').reverse.join('-'),
         end_date: mtds[1].text.split('.').reverse.join('-'),
         role: mtds[3].text.tidy,
+        style: tr.attr('style'),
       }
     end
-    terms, groups = mems.partition { |m| m[:id].downcase.include? 'member of the saeima' }
+    groups, terms = mems.partition { |m| m[:style].downcase.include? 'bold' }
     binding.pry if terms.count.zero? || groups.count.zero?
 
     combine(note: terms, party: groups).each do |mem|
