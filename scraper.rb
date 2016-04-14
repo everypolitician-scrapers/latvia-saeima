@@ -5,6 +5,7 @@ require 'scraperwiki'
 require 'capybara'
 require 'capybara/poltergeist'
 require 'nokogiri'
+require 'combine_popolo_memberships'
 
 require 'colorize'
 require 'pry'
@@ -18,29 +19,6 @@ class String
   def tidy
     self.gsub(/[[:space:]]/,' ').strip
   end
-end
-
-def overlap(mem, term)
-  mS = mem[:start_date].to_s.empty?  ? '0000-00-00' : mem[:start_date]
-  mE = mem[:end_date].to_s.empty?    ? '9999-99-99' : mem[:end_date]
-  tS = term[:start_date].to_s.empty? ? '0000-00-00' : term[:start_date]
-  tE = term[:end_date].to_s.empty?   ? '9999-99-99' : term[:end_date]
-
-  return unless mS < tE && mE > tS
-  (s, e) = [mS, mE, tS, tE].sort[1,2]
-  return { 
-    _data: [mem, term],
-    start_date: s == '0000-00-00' ? nil : s,
-    end_date:   e == '9999-99-99' ? nil : e,
-  }
-end
-
-def combine(h)
-  into_name, into_data, from_name, from_data = h.flatten
-  from_data.product(into_data).map { |a,b| overlap(a,b) }.compact.map { |h|
-    data = h.delete :_data
-    h.merge({ from_name => data.first[:id], into_name => data.last[:id] })
-  }.sort_by { |h| h[:start_date] }
 end
 
 pages = [
@@ -100,7 +78,9 @@ pages.each do |link|
     binding.pry if terms.count.zero? || groups.count.zero?
 
     puts person[:name]
-    combine(note: terms, party: groups).each do |mem|
+
+    CombinePopoloMemberships.combine(note: terms, party: groups).each do |mem|
+      %i(role style).each { |i| mem.delete(i) }
       data = person.merge(front).merge(mem)
       data[:party] = data[:party].sub(' parliamentary group','')
       ScraperWiki.save_sqlite([:id, :term, :party, :start_date], data)
