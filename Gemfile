@@ -9,7 +9,5 @@ gem 'colorize'
 gem 'open-uri-cached'
 gem 'pry'
 gem 'rake'
-gem 'capybara'
-gem 'poltergeist'
 gem "combine_popolo_memberships", git: "https://github.com/everypolitician/combine_popolo_memberships.git"
 gem "json5"
