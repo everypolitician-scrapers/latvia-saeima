@@ -27,6 +27,7 @@ GEM
     colorize (0.7.7)
     httpclient (2.6.0.1)
     json (1.8.2)
+    json5 (0.0.1)
     method_source (0.8.2)
     mime-types (2.5)
     mini_portile (0.6.2)
@@ -65,6 +66,7 @@ DEPENDENCIES
   colorize
   combine_popolo_memberships!
   json
+  json5
   nokogiri
   open-uri-cached
   poltergeist
