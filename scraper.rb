@@ -101,10 +101,10 @@ def scrape_list(term, fragment, type)
 end
 
 pages = [
-  # [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputies?OpenView&lang=EN&count=1000', 'drawDep' ],
-  # [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=1&lang=EN&count=1000', 'drawMand'],
-  # [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
-  [ 11, '/personal/deputati/saeima11_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
-  [ 10, '/personal/deputati/saeima10_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
+  [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputies?OpenView&lang=EN&count=1000', 'drawDep' ],
+  [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=1&lang=EN&count=1000', 'drawMand'],
+  [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
+  # [ 11, '/personal/deputati/saeima11_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
+  # [ 10, '/personal/deputati/saeima10_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
 ]
 pages.each { |term, link, type| scrape_list(term, link, type) }
