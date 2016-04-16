@@ -2,16 +2,14 @@
 # encoding: utf-8
 
 require 'scraperwiki'
-require 'capybara'
-require 'capybara/poltergeist'
 require 'nokogiri'
 require 'combine_popolo_memberships'
 
 require 'colorize'
 require 'pry'
-
-include Capybara::DSL
-Capybara.default_driver = :poltergeist
+require 'json5'
+require 'open-uri/cached'
+OpenURI::Cache.cache_path = '.cache'
 
 @BASE = 'http://titania.saeima.lv'
 
@@ -21,69 +19,89 @@ class String
   end
 end
 
-pages = [
-  '/personal/deputati/saeima12_depweb_public.nsf/deputies?OpenView&lang=EN&count=1000',
-  # '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=1&lang=EN&count=1000',
-  # '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000',
-]
+def noko_for(url)
+  Nokogiri::HTML(open(url).read)
+end
 
-pages.each do |link|
-  url = @BASE + link
-  page = visit url
+PERSON_URL = 'http://titania.saeima.lv/personal/deputati/saeima12_depweb_public.nsf/0/%s?OpenDocument&lang=EN'
+def scrape_person(data)
+  url = PERSON_URL % data[:id]
+  nokomem = noko_for(url)
 
-  noko = Nokogiri::HTML(page.html)
+  email = nokomem.css('table.wholeForm a[href^="mailto:"]/@href').text.gsub('mailto:','') rescue ''
 
-  noko.css('table#tableWithContent tr[class*="Row"]').each do |row|
-    tds = row.css('td')
-    front = {
-      first_name: tds[1].text.tidy,
-      family_name: tds[2].text.tidy,
-      current_group: tds[3].text.tidy,
-      source: row.attr('onclick').split("'")[1],
+  # TODO add given name + family name from front page
+  person = { 
+    id: data[:id],
+    name: nokomem.css('div.header3#ViewBlockTitle').text.tidy,
+    photo: nokomem.css('td#photoHolder img/@src').text,
+    email: email,
+    source: url.to_s,
+  }
+  person[:photo] = URI.join(url, person[:photo]).to_s unless person[:photo].to_s.empty?
+
+  term = nokomem.css('script').map(&:text).find { |t| t.include? 'XX. SAEIMA' }[/'XX', '(\d+)'/, 1]
+
+
+  mems = nokomem.css('.viewHolder script').text.split("\n").select { |l| l.include? 'drawWN' }.map { |l| JSON5.parse( l[/({.*?})/, 1].gsub('\\','') ) } 
+
+  # TODO Cabinet & Committees & other types of memberships
+  type10 = mems.select { |m| m['strLvlTp'] == '10' }
+  type2  = mems.select { |m| m['strLvlTp'] == '2' }
+  if type2.empty? || type10.empty?
+    warn "No memberships in #{url}"
+    return
+  end
+
+  group_mems = type2.map do |r|
+    { 
+      id: r['str'].sub(' parliamentary group', ''),
+      start_date: r['dtF'].split('.').reverse.join('-'),
+      end_date: r['dtT'].split('.').reverse.join('-'),
+      role: r['position'],
     }
+  end
 
-    # puts "#{mp_link}".red
-    mp_page = visit front[:source]
-    mem_table = ''
-    if mp_page.has_xpath? ('//frame[@name="topFrame"]') 
-      framesrc = find(:xpath, '//frame[@name="topFrame"]')['src']
-      frame_url = URI.join(front[:source], framesrc)
-      # warn "Frame: #{frame_url}".red
-      mp_page = visit frame_url
-    end
-    nokomem = Nokogiri::HTML(mp_page.html)
-
-    email = nokomem.css('table.wholeForm a[href^="mailto:"]/@href').text.gsub('mailto:','') rescue ''
-    person = { 
-      id: URI(mp_page.current_url).path.split('/').last,
-      name: nokomem.css('div.header3#ViewBlockTitle').text.tidy,
-      photo: nokomem.css('td#photoHolder img/@src').text,
-      email: email,
-      term: nokomem.css('.mainInfo .header3').text[/Activity during the (\d+)\w+ Saeima/, 1],
-      source: mp_page.current_url,
+  saeima_mems = type10.map do |r|
+    { 
+      id: term,
+      start_date: r['dtF'].split('.').reverse.join('-'),
+      end_date: r['dtT'].split('.').reverse.join('-'),
     }
-    person[:photo] = URI.join(url, person[:photo]).to_s unless person[:photo].to_s.empty?
+  end
 
-    mems = nokomem.xpath('.//div[@class="header2" and contains(.,"Membership in the Saeima")]/following::table[1]//tr[not(@class="tblHead")]').map do |tr|
-      mtds = tr.css('td')
-      mem = { 
-        id: mtds[2].text.tidy,
-        start_date: mtds[0].text.split('.').reverse.join('-'),
-        end_date: mtds[1].text.split('.').reverse.join('-'),
-        role: mtds[3].text.tidy,
-        style: tr.attr('style'),
-      }
-    end
-    groups, terms = mems.partition { |m| m[:style].downcase.include? 'bold' }
-    binding.pry if terms.count.zero? || groups.count.zero?
+  CombinePopoloMemberships.combine(term: saeima_mems, party: group_mems).each do |mem|
+    %i(role).each { |i| mem.delete(i) }
 
-    puts person[:name]
+    info = person.merge(data).merge(mem)
+    ScraperWiki.save_sqlite([:id, :term, :party, :start_date], info)
+  end
 
-    CombinePopoloMemberships.combine(note: terms, party: groups).each do |mem|
-      %i(role style).each { |i| mem.delete(i) }
-      data = person.merge(front).merge(mem)
-      data[:party] = data[:party].sub(' parliamentary group','')
-      ScraperWiki.save_sqlite([:id, :term, :party, :start_date], data)
-    end
+end
+
+def scrape_list(fragment, type)
+  url = URI.join(@BASE, fragment)
+  noko = noko_for(url)
+
+  ppl = noko.css('.viewHolderText').text.split("\n").select { |l| l.include? type }.map { |l| JSON5.parse( l[/({.*?})/, 1] ) }
+
+  ppl.each do |row|
+    data = {
+      id: row['unid'],
+      given_name: row['sname'],
+      family_name: row['name'],
+
+      # TODO build these up so we can get the IDs
+      # current_group: row['lst'], 
+      # current_group_id: row['shortStr'],
+    }
+    scrape_person(data)
   end
 end
+
+pages = [
+  [ '/personal/deputati/saeima12_depweb_public.nsf/deputies?OpenView&lang=EN&count=1000', 'drawDep' ],
+  # ['/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=1&lang=EN&count=1000', 'drawMand'],
+  # ['/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
+]
+pages.each { |link, type| scrape_list(link, type) }
