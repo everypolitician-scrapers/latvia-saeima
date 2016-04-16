@@ -23,9 +23,9 @@ def noko_for(url)
   Nokogiri::HTML(open(url).read)
 end
 
-PERSON_URL = 'http://titania.saeima.lv/personal/deputati/saeima12_depweb_public.nsf/0/%s?OpenDocument&lang=EN'
+PERSON_URL = 'http://titania.saeima.lv/personal/deputati/saeima%s_depweb_public.nsf/0/%s?OpenDocument&lang=EN'
 def scrape_person(data)
-  url = PERSON_URL % data[:id]
+  url = PERSON_URL % [data[:term], data[:id]]
   nokomem = noko_for(url)
 
   email = nokomem.css('table.wholeForm a[href^="mailto:"]/@href').text.gsub('mailto:','') rescue ''
@@ -40,8 +40,7 @@ def scrape_person(data)
   }
   person[:photo] = URI.join(url, person[:photo]).to_s unless person[:photo].to_s.empty?
 
-  term = nokomem.css('script').map(&:text).find { |t| t.include? 'XX. SAEIMA' }[/'XX', '(\d+)'/, 1]
-
+  # term = nokomem.css('script').map(&:text).find { |t| t.include? 'XX. SAEIMA' }[/'XX', '(\d+)'/, 1]
 
   mems = nokomem.css('.viewHolder script').text.split("\n").select { |l| l.include? 'drawWN' }.map { |l| JSON5.parse( l[/({.*?})/, 1].gsub('\\','') ) } 
 
@@ -64,7 +63,7 @@ def scrape_person(data)
 
   saeima_mems = type10.map do |r|
     { 
-      id: term,
+      id: data[:term],
       start_date: r['dtF'].split('.').reverse.join('-'),
       end_date: r['dtT'].split('.').reverse.join('-'),
     }
@@ -74,12 +73,13 @@ def scrape_person(data)
     %i(role).each { |i| mem.delete(i) }
 
     info = person.merge(data).merge(mem)
+    # warn info
     ScraperWiki.save_sqlite([:id, :term, :party, :start_date], info)
   end
 
 end
 
-def scrape_list(fragment, type)
+def scrape_list(term, fragment, type)
   url = URI.join(@BASE, fragment)
   noko = noko_for(url)
 
@@ -90,6 +90,7 @@ def scrape_list(fragment, type)
       id: row['unid'],
       given_name: row['name'],
       family_name: row['sname'],
+      term: term,
 
       # TODO build these up so we can get the IDs
       # current_group: row['lst'], 
@@ -100,8 +101,10 @@ def scrape_list(fragment, type)
 end
 
 pages = [
-  [ '/personal/deputati/saeima12_depweb_public.nsf/deputies?OpenView&lang=EN&count=1000', 'drawDep' ],
-  ['/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=1&lang=EN&count=1000', 'drawMand'],
-  ['/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
+  # [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputies?OpenView&lang=EN&count=1000', 'drawDep' ],
+  # [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=1&lang=EN&count=1000', 'drawMand'],
+  # [ 12, '/personal/deputati/saeima12_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
+  [ 11, '/personal/deputati/saeima11_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
+  [ 10, '/personal/deputati/saeima10_depweb_public.nsf/deputiesByMandate?OpenView&restricttocategory=2&lang=EN&count=1000', 'drawMand' ],
 ]
-pages.each { |link, type| scrape_list(link, type) }
+pages.each { |term, link, type| scrape_list(term, link, type) }
