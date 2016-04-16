@@ -88,8 +88,8 @@ def scrape_list(fragment, type)
   ppl.each do |row|
     data = {
       id: row['unid'],
-      given_name: row['sname'],
-      family_name: row['name'],
+      given_name: row['name'],
+      family_name: row['sname'],
 
       # TODO build these up so we can get the IDs
       # current_group: row['lst'], 
