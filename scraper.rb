@@ -4,10 +4,9 @@
 require 'scraperwiki'
 require 'nokogiri'
 require 'combine_popolo_memberships'
-
-require 'colorize'
 require 'pry'
 require 'json5'
+
 require 'open-uri/cached'
 OpenURI::Cache.cache_path = '.cache'
 
