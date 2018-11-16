@@ -72,7 +72,7 @@ def scrape_person(data)
     %i(role).each { |i| mem.delete(i) }
 
     info = person.merge(data).merge(mem)
-    # warn info
+    puts info.reject { |_, v| v.to_s.empty? }.sort_by { |k, _| k }.to_h if ENV['MORPH_DEBUG']
     ScraperWiki.save_sqlite([:id, :term, :party, :start_date], info)
   end
 
