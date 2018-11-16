@@ -4,7 +4,6 @@
 require 'combine_popolo_memberships'
 require 'json5'
 require 'nokogiri'
-require 'pry'
 require 'scraped'
 require 'scraperwiki'
 
@@ -30,12 +29,10 @@ def scrape_person(data)
     name:   nokomem.css('div.header3#ViewBlockTitle').text.tidy,
     photo:  nokomem.css('td#photoHolder img/@src').text,
     email:  email,
+    term:   url[/saeima(\d+)/, 1].to_i,
     source: url.to_s,
   }
   person[:photo] = URI.join(url, person[:photo]).to_s unless person[:photo].to_s.empty?
-
-  # TODO: get term from page
-  # term = nokomem.css('script').map(&:text).find { |t| t.include? 'XX. SAEIMA' }[/'XX', '(\d+)'/, 1]
 
   mems = nokomem.css('.viewHolder script').text.split("\n").select { |l| l.include? 'drawWN' }.map { |l| JSON5.parse(l[/({.*?})/, 1].delete('\\')) }
 
