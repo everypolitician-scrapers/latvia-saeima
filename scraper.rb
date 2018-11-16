@@ -1,22 +1,17 @@
 #!/bin/env ruby
 # encoding: utf-8
 
-require 'scraperwiki'
-require 'nokogiri'
 require 'combine_popolo_memberships'
-require 'pry'
 require 'json5'
+require 'nokogiri'
+require 'pry'
+require 'scraped'
+require 'scraperwiki'
 
 require 'open-uri/cached'
 OpenURI::Cache.cache_path = '.cache'
 
 @BASE = 'http://titania.saeima.lv'
-
-class String
-  def tidy
-    self.gsub(/[[:space:]]/,' ').strip
-  end
-end
 
 def noko_for(url)
   Nokogiri::HTML(open(url).read)
